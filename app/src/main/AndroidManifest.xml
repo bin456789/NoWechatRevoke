@@ -1,0 +1,19 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="bin.xposed.NoWechatRevoke">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name">
+        <meta-data
+            android:name="xposedmodule"
+            android:value="true" />
+        <meta-data
+            android:name="xposeddescription"
+            android:value="别人无法撤回本机收到的消息。" />
+        <meta-data
+            android:name="xposedminversion"
+            android:value="54" />
+    </application>
+
+</manifest>

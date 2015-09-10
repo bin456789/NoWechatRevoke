@@ -1,0 +1,50 @@
+apply plugin: 'com.android.application'
+
+Properties props = new Properties()
+props.load(new FileInputStream(file("signing.properties")))
+
+def outputPathName = "../apk-output/NoWechatRevoke.apk"
+
+android {
+    signingConfigs {
+        config {
+            try {
+                keyAlias props['KEY_ALIAS']
+                keyPassword props['KEY_PASSWORD']
+                storeFile file(props['STORE_FILE'])
+                storePassword props['STORE_PASSWORD']
+            }
+            catch (ex) {
+                throw new InvalidUserDataException("You should define KEY_ALIAS, KEY_PASSWORD, STORE_FILE and STORE_PASSWORD in signing.properties.")
+            }
+        }
+    }
+    compileSdkVersion 23
+    buildToolsVersion "23.0.1"
+    defaultConfig {
+        applicationId "bin.xposed.NoWechatRevoke"
+        minSdkVersion 15
+        targetSdkVersion 23
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes {
+        release {
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.config
+        }
+    }
+
+    //复制一份apk到指定目录，方便在github下载
+    applicationVariants.all { variant ->
+        variant.outputs.each { output ->
+            output.outputFile = new File(outputPathName)
+        }
+    }
+}
+
+dependencies {
+    provided files('libs/XposedBridgeApi-54.jar')
+}
+
