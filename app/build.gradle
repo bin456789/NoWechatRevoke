@@ -36,12 +36,12 @@ android {
         }
     }
 
-//复制一份apk到指定目录，方便在github下载
-//applicationVariants.all { variant ->
-//    variant.outputs.each { output ->
-//        output.outputFile = new File(outputPathName)
+//    //复制一份apk到指定目录 ， 方便在github下载
+//    applicationVariants.all { variant ->
+//        variant.outputs.each { output ->
+//            output.outputFile = new File(outputPathName)
+//        }
 //    }
-//}
 }
 
 dependencies {
