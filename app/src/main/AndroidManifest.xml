@@ -10,10 +10,10 @@
             android:value="true" />
         <meta-data
             android:name="xposeddescription"
-            android:value="别人无法撤回本机收到的消息。" />
+            android:value="在本机上保留对方要撤回的微信消息。" />
         <meta-data
             android:name="xposedminversion"
-            android:value="54" />
+            android:value="30" />
     </application>
 
 </manifest>
