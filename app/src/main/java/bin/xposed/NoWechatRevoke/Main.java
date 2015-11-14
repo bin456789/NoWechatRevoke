@@ -43,10 +43,16 @@ public class Main implements IXposedHookLoadPackage {
             className += "p";
             functionName = "B";
         }
-        //6.3.0, 6.3.5+
-        else {
+        //6.3.0, 6.3.5
+        else if (versionName.startsWith("6.3.0")
+                || versionName.startsWith("6.3.5")) {
             className += "q";
             functionName = "C";
+        }
+        //6.3.7
+        else {
+            className += "r";
+            functionName = "H";
         }
 
 
