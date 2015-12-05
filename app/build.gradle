@@ -46,5 +46,6 @@ android {
 
 dependencies {
     provided files('libs/XposedBridgeApi-30.jar')
+    compile 'com.android.support:support-v4:23.1.1'
 }
 
