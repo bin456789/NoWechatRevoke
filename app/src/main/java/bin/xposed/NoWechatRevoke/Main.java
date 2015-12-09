@@ -54,7 +54,7 @@ public class Main implements IXposedHookLoadPackage {
             MMMap.put("6.2.5", new MMArgs("p", "B"));
             MMMap.put("6.3.0", new MMArgs("q", "C"));
             MMMap.put("6.3.5", new MMArgs("q", "C"));
-            MMMap.put("6.3.5", new MMArgs("r", "H"));
+            MMMap.put("6.3.7", new MMArgs("r", "H"));
             MMMap.put("6.3.8", new MMArgs("r", "I"));
 
             //current ver
