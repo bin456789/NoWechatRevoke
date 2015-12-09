@@ -9,9 +9,9 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.TaskStackBuilder;
-import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
@@ -22,7 +22,6 @@ import static de.robv.android.xposed.XposedHelpers.callMethod;
 import static de.robv.android.xposed.XposedHelpers.callStaticMethod;
 import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
 import static de.robv.android.xposed.XposedHelpers.findClass;
-
 
 public class Main implements IXposedHookLoadPackage {
 
@@ -37,31 +36,33 @@ public class Main implements IXposedHookLoadPackage {
             Context systemContext = (Context) callMethod(activityThread, "getSystemContext");
             String versionName = systemContext.getPackageManager().getPackageInfo(lpparam.packageName, 0).versionName;
 
-            //hook args
-            String className = "com.tencent.mm.sdk.platformtools.";
-            String functionName;
+            //wechat versions map
+            class MMArgs {
+                String className;
+                String functionName;
 
-            //only support 6.2.5+
-            if (versionName.compareTo("6.2.5") < 0) {
+                MMArgs(String className, String functionName) {
+                    this.className = className;
+                    this.functionName = functionName;
+                }
+            }
+
+            Map<String, MMArgs> MMMap = new HashMap<String, MMArgs>();
+            MMMap.put("6.2.0", new MMArgs("p", "z"));
+            MMMap.put("6.2.2", new MMArgs("q", "A"));
+            MMMap.put("6.2.4", new MMArgs("p", "B"));
+            MMMap.put("6.2.5", new MMArgs("p", "B"));
+            MMMap.put("6.3.0", new MMArgs("q", "C"));
+            MMMap.put("6.3.5", new MMArgs("q", "C"));
+            MMMap.put("6.3.5", new MMArgs("r", "H"));
+            MMMap.put("6.3.8", new MMArgs("r", "I"));
+
+            //current ver
+            String[] versionNameSplits = versionName.split("\\.");
+            String shortVersion = versionNameSplits[0] + "." + versionNameSplits[1] + "." + versionNameSplits[2];
+            MMArgs currentArgs = MMMap.get(shortVersion);
+            if (currentArgs == null)
                 return;
-            }
-
-            //6.2.5
-            if (versionName.startsWith("6.2.5")) {
-                className += "p";
-                functionName = "B";
-            }
-            //6.3.0, 6.3.5
-            else if (versionName.startsWith("6.3.0")
-                    || versionName.startsWith("6.3.5")) {
-                className += "q";
-                functionName = "C";
-            }
-            //6.3.7
-            else {
-                className += "r";
-                functionName = "H";
-            }
 
             //get context
             findAndHookMethod("com.tencent.mm.ui.LauncherUI", lpparam.classLoader, "onCreate", Bundle.class, new XC_MethodHook() {
@@ -70,20 +71,17 @@ public class Main implements IXposedHookLoadPackage {
                             mmContext = (Context) param.thisObject;
                             mmActivity = (Activity) mmContext;
                         }
-
                     }
             );
 
-
             //map
-            findAndHookMethod(className, lpparam.classLoader, functionName, String.class, String.class, String.class, new XC_MethodHook() {
+            findAndHookMethod("com.tencent.mm.sdk.platformtools." + currentArgs.className, lpparam.classLoader, currentArgs.functionName, String.class, String.class, String.class, new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                            Map map = (Map) param.getResult();
-                            if (map == null)
-                                return;
+                            @SuppressWarnings("unchecked")
+                            Map<String, String> map = (Map<String, String>) param.getResult();
 
-                            String type = (String) map.get(".sysmsg.$type");
+                            String type = map.get(".sysmsg.$type");
                             if (type == null)
                                 return;
 
@@ -91,11 +89,12 @@ public class Main implements IXposedHookLoadPackage {
                                 map.put(".sysmsg.$type", null);
                                 param.setResult(map);
 
-                                //Toast
                                 if (mmContext != null) {
-                                    String replacemsg = (String) map.get(".sysmsg.revokemsg.replacemsg");
+                                    String replacemsg = map.get(".sysmsg.revokemsg.replacemsg");
                                     replacemsg = replacemsg.replaceAll("撤回了一条消息$", "尝试撤回一条消息");
-                                    Toast.makeText(mmContext, replacemsg, Toast.LENGTH_LONG).show();
+
+                                    //Toast
+                                    //Toast.makeText(mmContext, replacemsg, Toast.LENGTH_LONG).show();
 
                                     //Notification
                                     NotificationCompat.Builder mBuilder =
@@ -114,6 +113,7 @@ public class Main implements IXposedHookLoadPackage {
                                     mNotificationManager.notify(0, mBuilder.build());
                                 }
                             }
+
                         }
                     }
             );
