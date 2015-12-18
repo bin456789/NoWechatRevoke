@@ -113,52 +113,55 @@ public class Main implements IXposedHookLoadPackage {
                                 replacemsg = replacemsg.replaceAll("撤回了一条消息$", "尝试撤回一条消息");
 
                                 //sql context
-                                if (!isInitSqlContext) {
-                                    AH = findClass("com.tencent.mm.model.ah", lpparam.classLoader);
-                                    C = findClass("com.tencent.mm.model.c", lpparam.classLoader);
-                                    AE = findClass("com.tencent.mm.storage.ae", lpparam.classLoader);
-                                    tl = callStaticMethod(AH, "tl");
-                                    rj = callMethod(tl, "rj");
-                                    bww = getObjectField(rj, "bww");
-                                    isInitSqlContext = true;
-                                }
-
-                                String msgid = map.get(".sysmsg.revokemsg.newmsgid");
-                                String sql = "select type, content from message where msgsvrid=?";
-                                String[] sqlArgs = {msgid};
-
-                                String notifyContent;
-                                Cursor localCursor = (Cursor) callMethod(bww, "rawQuery", sql, sqlArgs);
-                                if (localCursor.moveToFirst()) {
-                                    int $type = localCursor.getInt(0);
-                                    //show and update content only if content is text
-                                    if ($type == 1) {
-                                        String $content = notifyContent = localCursor.getString(1);
-                                        ContentValues contentValues = new ContentValues();
-                                        contentValues.put("content", $content + " (已撤回)");
-                                        callMethod(bww, "update", "message", contentValues, "msgsvrid=?", sqlArgs);
-                                    } else {
-                                        notifyContent = "";
+                                String notifyContent = "";
+                                try {
+                                    if (!isInitSqlContext) {
+                                        AH = findClass("com.tencent.mm.model.ah", lpparam.classLoader);
+                                        C = findClass("com.tencent.mm.model.c", lpparam.classLoader);
+                                        AE = findClass("com.tencent.mm.storage.ae", lpparam.classLoader);
+                                        tl = callStaticMethod(AH, "tl");
+                                        rj = callMethod(tl, "rj");
+                                        bww = getObjectField(rj, "bww");
+                                        isInitSqlContext = true;
                                     }
 
+                                    String msgid = map.get(".sysmsg.revokemsg.newmsgid");
+                                    String sql = "select type, content from message where msgsvrid=?";
+                                    String[] sqlArgs = {msgid};
 
-                                    if (mmContext != null) {
-                                        //Notification
-                                        NotificationCompat.Builder mBuilder =
-                                                new NotificationCompat.Builder(mmContext)
-                                                        .setAutoCancel(true)
-                                                        .setSmallIcon(android.R.drawable.ic_dialog_info)
-                                                        .setContentTitle(replacemsg)
-                                                        .setContentText(notifyContent);
 
-                                        Intent resultIntent = new Intent(mmActivity, mmActivity.getClass());
-                                        TaskStackBuilder stackBuilder = TaskStackBuilder.create(mmContext);
-                                        stackBuilder.addParentStack(mmActivity.getClass());
-                                        stackBuilder.addNextIntent(resultIntent);
-                                        PendingIntent resultPendingIntent = stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
-                                        mBuilder.setContentIntent(resultPendingIntent);
-                                        NotificationManager mNotificationManager = (NotificationManager) mmContext.getSystemService(Context.NOTIFICATION_SERVICE);
-                                        mNotificationManager.notify(0, mBuilder.build());
+                                    Cursor localCursor = (Cursor) callMethod(bww, "rawQuery", sql, sqlArgs);
+                                    if (localCursor.moveToFirst()) {
+                                        int $type = localCursor.getInt(0);
+                                        //show and update content only if content is text
+                                        if ($type == 1) {
+                                            String $content = notifyContent = localCursor.getString(1);
+                                            ContentValues contentValues = new ContentValues();
+                                            contentValues.put("content", $content + " (已撤回)");
+                                            callMethod(bww, "update", "message", contentValues, "msgsvrid=?", sqlArgs);
+                                        }
+                                    }
+                                } catch (Exception ex) {
+                                }
+
+
+                                if (mmContext != null) {
+                                    //Notification
+                                    NotificationCompat.Builder mBuilder =
+                                            new NotificationCompat.Builder(mmContext)
+                                                    .setAutoCancel(true)
+                                                    .setSmallIcon(android.R.drawable.ic_dialog_info)
+                                                    .setContentTitle(replacemsg)
+                                                    .setContentText(notifyContent);
+
+                                    Intent resultIntent = new Intent(mmActivity, mmActivity.getClass());
+                                    TaskStackBuilder stackBuilder = TaskStackBuilder.create(mmContext);
+                                    stackBuilder.addParentStack(mmActivity.getClass());
+                                    stackBuilder.addNextIntent(resultIntent);
+                                    PendingIntent resultPendingIntent = stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
+                                    mBuilder.setContentIntent(resultPendingIntent);
+                                    NotificationManager mNotificationManager = (NotificationManager) mmContext.getSystemService(Context.NOTIFICATION_SERVICE);
+                                    mNotificationManager.notify(0, mBuilder.build());
 
 
 //                                        //不需要v4包，需要设置项目为compile sdk version 15
@@ -172,7 +175,6 @@ public class Main implements IXposedHookLoadPackage {
 //                                        notification.defaults |= Notification.DEFAULT_SOUND;
 //                                        notification.defaults |= Notification.DEFAULT_VIBRATE;
 //                                        notificationManager.notify(0, notification);
-                                    }
                                 }
                             }
                         }
