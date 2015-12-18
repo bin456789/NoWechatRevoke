@@ -3,7 +3,7 @@ apply plugin: 'com.android.application'
 Properties props = new Properties()
 props.load(new FileInputStream(file("signing.properties")))
 
-def outputPathName = "../apk-output/NoWechatRevoke.apk"
+//def outputPathName = "../apk-output/NoWechatRevoke.apk"
 
 android {
     signingConfigs {
@@ -20,18 +20,18 @@ android {
         }
     }
     compileSdkVersion 23
-    buildToolsVersion "23.0.1"
+    buildToolsVersion "23.0.2"
     defaultConfig {
         applicationId "bin.xposed.NoWechatRevoke"
         minSdkVersion 15
         targetSdkVersion 23
-        versionCode 4
-        versionName "1.1.0"
+        versionCode 5
+        versionName "1.2.0"
     }
     buildTypes {
         release {
-            minifyEnabled false
-            shrinkResources false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.config
         }
