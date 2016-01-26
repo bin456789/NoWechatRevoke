@@ -1,15 +1,8 @@
 package bin.xposed.NoWechatRevoke;
 
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.ContentValues;
 import android.content.Context;
-import android.content.Intent;
 import android.database.Cursor;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.TaskStackBuilder;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -25,20 +18,21 @@ import static de.robv.android.xposed.XposedHelpers.callStaticMethod;
 import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
 import static de.robv.android.xposed.XposedHelpers.findClass;
 import static de.robv.android.xposed.XposedHelpers.getObjectField;
-import static de.robv.android.xposed.XposedHelpers.newInstance;
 
 
 public class Main implements IXposedHookLoadPackage {
-    String TAG = "NoWechatRevoke";
 
     public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
 
+        //qq
         if (lpparam.packageName.equals("com.tencent.mobileqq")) {
             findAndHookMethod("com.tencent.mobileqq.app.message.QQMessageFacade", lpparam.classLoader,
                     "a", ArrayList.class, boolean.class, XC_MethodReplacement.DO_NOTHING);
         }
 
+        //wechat
         if (lpparam.packageName.equals(Wechat.PACKAGE_NAME)) {
+
             //get version
             final Object activityThread = callStaticMethod(findClass("android.app.ActivityThread", null), "currentActivityThread");
             final Context systemContext = (Context) callMethod(activityThread, "getSystemContext");
@@ -70,48 +64,55 @@ public class Main implements IXposedHookLoadPackage {
                         param.setResult(map);
 
                         String replacemsg = map.get(".sysmsg.revokemsg.replacemsg");
-                        replacemsg = replacemsg.replaceAll("撤回了一条消息$", "尝试撤回一条消息");
-
-                        //Notification
-                        Context mmContext = (Context) callStaticMethod(Wechat.FIND_CLASS_Z, "getContext");
-                        Intent resultIntent = new Intent().setClassName(mmContext, "com.tencent.mm.ui.LauncherUI");
-                        PendingIntent resultPendingIntent = TaskStackBuilder
-                                .create(mmContext)
-                                .addNextIntent(resultIntent)
-                                .getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
-                        NotificationCompat.Builder mBuilder =
-                                new NotificationCompat.Builder(mmContext)
-                                        .setAutoCancel(true)
-                                        .setSmallIcon(android.R.drawable.ic_dialog_info)
-                                        .setContentIntent(resultPendingIntent)
-                                        .setContentTitle(replacemsg);
+                        replacemsg = Wechat.PATTERN.matcher(replacemsg).replaceAll("尝试撤回上条消息");
 
                         //db
                         Object dbContext = getObjectField(callMethod(callStaticMethod(Wechat.FIND_CLASS_AH, Wechat.DB_CONTEXT_STRINGS[1]), Wechat.DB_CONTEXT_STRINGS[2]), Wechat.DB_CONTEXT_STRINGS[3]);
+
+//                        //better way but not working
+//                        String sql = " insert into message"
+//                                + " (msgId,msgSvrId,type,status,createTime,talker,talkerId,content)"
+//                                + " select"
+//                                + " max(msgId)+1,msgSvrId,10000,status,createTime+1,talker,talkerId,'上条已撤回' as content"
+//                                + " from message where msgSvrId =" + map.get(".sysmsg.revokemsg.newmsgid")
+//                                + " limit 1;";
+//                        callMethod(dbContext, "rawQuery", sql, null);
+
                         String[] sqlArgs = {map.get(".sysmsg.revokemsg.newmsgid")};
-                        Cursor localCursor = (Cursor) callMethod(dbContext, "rawQuery", "select type, content, imgPath from message where msgsvrid=?", sqlArgs);
-                        if (localCursor.moveToFirst()) {
-                            int $type = localCursor.getInt(0);
-                            //show and update content only if content is text
-                            if ($type == 1) {
-                                String $content = localCursor.getString(1);
-                                mBuilder.setContentText($content);
-                                //modify
-                                ContentValues contentValues = new ContentValues();
-                                contentValues.put("content", $content + " (已撤回)");
-                                callMethod(dbContext, "update", "message", contentValues, "msgsvrid=?", sqlArgs);
-                            } else if ($type == 3) {
-                                String $imgPath = localCursor.getString(2);
-                                if (!isEmpty($imgPath)) {
-                                    String sdcardImgPath = (String) callMethod(newInstance(Wechat.FIND_CLASS_F, dbContext), Wechat.HC, $imgPath);
-                                    //bitmap might be blank
-                                    Bitmap bitmap = BitmapFactory.decodeFile(sdcardImgPath);
-                                    mBuilder.setLargeIcon(bitmap);
+                        Cursor messageCursor = (Cursor) callMethod(dbContext, "rawQuery", "select * from message where msgsvrid=?", sqlArgs);
+
+                        if (messageCursor.moveToFirst()) {
+                            //thanks to fkzhang
+                            ContentValues v = new ContentValues();
+                            v.put("msgSvrId", map.get(".sysmsg.revokemsg.newmsgid"));
+                            v.put("type", 10000);
+                            v.put("status", messageCursor.getInt(messageCursor.getColumnIndex("status")));
+                            v.put("createTime", messageCursor.getLong(messageCursor.getColumnIndex("createTime")) + 1);
+                            v.put("talker", messageCursor.getString(messageCursor.getColumnIndex("talker")));
+                            v.put("content", replacemsg);
+
+                            //6.0.0 has no talkerId
+                            int colIndex = messageCursor.getColumnIndex("talkerId");
+                            if (colIndex >= 0)
+                                v.put("talkerId", messageCursor.getLong(colIndex));
+
+                            //get next msgId, unsafe?
+                            Cursor getMaxMsdIdCursor = (Cursor) callMethod(dbContext, "rawQuery", "SELECT max(msgId) FROM message", null);
+                            if (getMaxMsdIdCursor.moveToFirst()) {
+                                v.put("msgId", getMaxMsdIdCursor.getLong(0) + 1);
+                                //insert
+                                callMethod(dbContext, "insert", "message", null, v);
+
+                                //refresh msgId
+                                if (Wechat.UPDATE_MSGID_STRINGS.length == 2) {
+                                    callMethod(callMethod(Wechat.MESSAGE_TABLE_CONTEXT, Wechat.UPDATE_MSGID_STRINGS[0], "message"), Wechat.UPDATE_MSGID_STRINGS[1]);
+                                } else {
+                                    callMethod(callMethod(callStaticMethod(Wechat.FIND_CLASS_AH, Wechat.DB_CONTEXT_STRINGS[1]), Wechat.DB_CONTEXT_STRINGS[2]), Wechat.UPDATE_MSGID_STRINGS[0]);
                                 }
                             }
+                            getMaxMsdIdCursor.close();
                         }
-                        NotificationManager mNotificationManager = (NotificationManager) mmContext.getSystemService(Context.NOTIFICATION_SERVICE);
-                        mNotificationManager.notify(0, mBuilder.build());
+                        messageCursor.close();
                     }
                 }
             });
