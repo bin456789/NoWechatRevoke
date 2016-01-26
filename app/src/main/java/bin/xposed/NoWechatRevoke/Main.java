@@ -4,12 +4,10 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 
-import java.util.ArrayList;
 import java.util.Map;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XC_MethodReplacement;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
 import static android.text.TextUtils.isEmpty;
@@ -24,11 +22,11 @@ public class Main implements IXposedHookLoadPackage {
 
     public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
 
-        //qq
-        if (lpparam.packageName.equals("com.tencent.mobileqq")) {
-            findAndHookMethod("com.tencent.mobileqq.app.message.QQMessageFacade", lpparam.classLoader,
-                    "a", ArrayList.class, boolean.class, XC_MethodReplacement.DO_NOTHING);
-        }
+//        //qq
+//        if (lpparam.packageName.equals("com.tencent.mobileqq")) {
+//            findAndHookMethod("com.tencent.mobileqq.app.message.QQMessageFacade", lpparam.classLoader,
+//                    "a", ArrayList.class, boolean.class, XC_MethodReplacement.DO_NOTHING);
+//        }
 
         //wechat
         if (lpparam.packageName.equals(Wechat.PACKAGE_NAME)) {
