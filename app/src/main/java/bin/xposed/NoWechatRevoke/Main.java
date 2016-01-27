@@ -48,7 +48,7 @@ public class Main implements IXposedHookLoadPackage {
             findAndHookMethod(Wechat.MAP_CLASS_NAME, lpparam.classLoader, Wechat.MAP_FUNCTION_NAME, String.class, String.class, String.class, new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                    if (param.args[1].equals("sysmsg") && param.args[2] == null) {
+                    if (param.args[1].equals("sysmsg")) {
                         @SuppressWarnings("unchecked")
                         Map<String, String> map = (Map<String, String>) param.getResult();
                         if (map == null)
