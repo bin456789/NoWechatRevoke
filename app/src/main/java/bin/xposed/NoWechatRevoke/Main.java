@@ -48,24 +48,25 @@ public class Main implements IXposedHookLoadPackage {
             findAndHookMethod(Wechat.MAP_CLASS_NAME, lpparam.classLoader, Wechat.MAP_FUNCTION_NAME, String.class, String.class, String.class, new XC_MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-                    @SuppressWarnings("unchecked")
-                    Map<String, String> map = (Map<String, String>) param.getResult();
-                    if (map == null)
-                        return;
+                    if (param.args[1].equals("sysmsg") && param.args[2] == null) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, String> map = (Map<String, String>) param.getResult();
+                        if (map == null)
+                            return;
 
-                    String type = map.get(".sysmsg.$type");
-                    if (isEmpty(type))
-                        return;
+                        String type = map.get(".sysmsg.$type");
+                        if (isEmpty(type))
+                            return;
 
-                    if (type.equals("revokemsg")) {
-                        map.put(".sysmsg.$type", null);
-                        param.setResult(map);
+                        if (type.equals("revokemsg")) {
+                            map.put(".sysmsg.$type", null);
+                            param.setResult(map);
 
-                        String replacemsg = map.get(".sysmsg.revokemsg.replacemsg");
-                        replacemsg = Wechat.PATTERN.matcher(replacemsg).replaceAll("尝试撤回上条消息");
+                            String replacemsg = map.get(".sysmsg.revokemsg.replacemsg");
+                            replacemsg = Wechat.PATTERN.matcher(replacemsg).replaceAll("尝试撤回上条消息");
 
-                        //db
-                        Object dbContext = getObjectField(callMethod(callStaticMethod(Wechat.FIND_CLASS_AH, Wechat.DB_CONTEXT_STRINGS[1]), Wechat.DB_CONTEXT_STRINGS[2]), Wechat.DB_CONTEXT_STRINGS[3]);
+                            //db
+                            Object dbContext = getObjectField(callMethod(callStaticMethod(Wechat.FIND_CLASS_AH, Wechat.DB_CONTEXT_STRINGS[1]), Wechat.DB_CONTEXT_STRINGS[2]), Wechat.DB_CONTEXT_STRINGS[3]);
 
 //                        //better way but not working
 //                        String sql = " insert into message"
@@ -76,41 +77,42 @@ public class Main implements IXposedHookLoadPackage {
 //                                + " limit 1;";
 //                        callMethod(dbContext, "rawQuery", sql, null);
 
-                        String[] sqlArgs = {map.get(".sysmsg.revokemsg.newmsgid")};
-                        Cursor messageCursor = (Cursor) callMethod(dbContext, "rawQuery", "select * from message where msgsvrid=?", sqlArgs);
+                            String[] sqlArgs = {map.get(".sysmsg.revokemsg.newmsgid")};
+                            Cursor messageCursor = (Cursor) callMethod(dbContext, "rawQuery", "select * from message where msgsvrid=?", sqlArgs);
 
-                        if (messageCursor.moveToFirst()) {
-                            //thanks to fkzhang
-                            ContentValues v = new ContentValues();
-                            v.put("msgSvrId", map.get(".sysmsg.revokemsg.newmsgid"));
-                            v.put("type", 10000);
-                            v.put("status", messageCursor.getInt(messageCursor.getColumnIndex("status")));
-                            v.put("createTime", messageCursor.getLong(messageCursor.getColumnIndex("createTime")) + 1);
-                            v.put("talker", messageCursor.getString(messageCursor.getColumnIndex("talker")));
-                            v.put("content", replacemsg);
+                            if (messageCursor.moveToFirst()) {
+                                //thanks to fkzhang
+                                ContentValues v = new ContentValues();
+                                v.put("msgSvrId", map.get(".sysmsg.revokemsg.newmsgid"));
+                                v.put("type", 10000);
+                                v.put("status", messageCursor.getInt(messageCursor.getColumnIndex("status")));
+                                v.put("createTime", messageCursor.getLong(messageCursor.getColumnIndex("createTime")) + 1);
+                                v.put("talker", messageCursor.getString(messageCursor.getColumnIndex("talker")));
+                                v.put("content", replacemsg);
 
-                            //6.0.0 has no talkerId
-                            int colIndex = messageCursor.getColumnIndex("talkerId");
-                            if (colIndex >= 0)
-                                v.put("talkerId", messageCursor.getLong(colIndex));
+                                //6.0.0 has no talkerId
+                                int colIndex = messageCursor.getColumnIndex("talkerId");
+                                if (colIndex >= 0)
+                                    v.put("talkerId", messageCursor.getLong(colIndex));
 
-                            //get next msgId, unsafe?
-                            Cursor getMaxMsdIdCursor = (Cursor) callMethod(dbContext, "rawQuery", "SELECT max(msgId) FROM message", null);
-                            if (getMaxMsdIdCursor.moveToFirst()) {
-                                v.put("msgId", getMaxMsdIdCursor.getLong(0) + 1);
-                                //insert
-                                callMethod(dbContext, "insert", "message", null, v);
+                                //get next msgId, unsafe?
+                                Cursor getMaxMsdIdCursor = (Cursor) callMethod(dbContext, "rawQuery", "SELECT max(msgId) FROM message", null);
+                                if (getMaxMsdIdCursor.moveToFirst()) {
+                                    v.put("msgId", getMaxMsdIdCursor.getLong(0) + 1);
+                                    //insert
+                                    callMethod(dbContext, "insert", "message", null, v);
 
-                                //refresh msgId
-                                if (Wechat.UPDATE_MSGID_STRINGS.length == 2) {
-                                    callMethod(callMethod(Wechat.MESSAGE_TABLE_CONTEXT, Wechat.UPDATE_MSGID_STRINGS[0], "message"), Wechat.UPDATE_MSGID_STRINGS[1]);
-                                } else {
-                                    callMethod(callMethod(callStaticMethod(Wechat.FIND_CLASS_AH, Wechat.DB_CONTEXT_STRINGS[1]), Wechat.DB_CONTEXT_STRINGS[2]), Wechat.UPDATE_MSGID_STRINGS[0]);
+                                    //refresh msgId
+                                    if (Wechat.UPDATE_MSGID_STRINGS.length == 2) {
+                                        callMethod(callMethod(Wechat.MESSAGE_TABLE_CONTEXT, Wechat.UPDATE_MSGID_STRINGS[0], "message"), Wechat.UPDATE_MSGID_STRINGS[1]);
+                                    } else {
+                                        callMethod(callMethod(callStaticMethod(Wechat.FIND_CLASS_AH, Wechat.DB_CONTEXT_STRINGS[1]), Wechat.DB_CONTEXT_STRINGS[2]), Wechat.UPDATE_MSGID_STRINGS[0]);
+                                    }
                                 }
+                                getMaxMsdIdCursor.close();
                             }
-                            getMaxMsdIdCursor.close();
+                            messageCursor.close();
                         }
-                        messageCursor.close();
                     }
                 }
             });

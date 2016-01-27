@@ -11,7 +11,6 @@ import static de.robv.android.xposed.XposedHelpers.findConstructorExact;
 
 public final class Wechat {
     final static String PACKAGE_NAME = "com.tencent.mm";
-    static String VERSION;
     static ClassLoader CLASS_LOADER;
 
     //map
@@ -30,7 +29,6 @@ public final class Wechat {
 
     public static boolean init(String version, ClassLoader classLoader) {
         Wechat.CLASS_LOADER = classLoader;
-        Wechat.VERSION = version;
 
         switch (version) {
             case "6.0.0":
